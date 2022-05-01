@@ -1,0 +1,7 @@
+{
+    "name": "zindey_account-sam",
+    "description": "SAM template for the zindey_account project",
+    "version": "0.0.1",
+    "private": true
+}
+

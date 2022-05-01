@@ -1,0 +1,104 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+
+Description: SAM Template for Zindey account project
+
+Parameters:
+  RoleTableName:
+    Type: String
+    Default: zindey-account-role-table
+
+Globals:
+  Function:
+      CodeUri: src/
+      Runtime: nodejs14.x
+      MemorySize: 256
+      Timeout: 60
+      Architectures:
+        - x86_64
+      Layers:
+        - arn:aws:lambda:us-east-1:213198851588:layer:uuid:1
+ 
+Resources:
+
+  #-------Role Functions-------
+  GetRolesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: role/get_roles.lambdaHandler
+      Events:
+        GetRoleEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AccountAPI
+            Path: /role/{key}
+            Method: GET
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RoleTableName
+  
+  PostRoleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: role/create_role.lambdaHandler
+      Events:
+        PostRoleEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AccountAPI
+            Path: /role
+            Method: POST
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RoleTableName
+
+  PutRoleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: role/update_role.lambdaHandler
+      Events:
+        PutRoleEvent:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AccountAPI
+            Path: /role
+            Method: PUT
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RoleTableName
+          
+  #-------- DynamoDB tables --------
+
+  RoleTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref RoleTableName
+      AttributeDefinitions:
+        - AttributeName: "id"
+          AttributeType: "S"
+      KeySchema:
+        - AttributeName: "id"
+          KeyType: "HASH"
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+  #------- REST API -------
+  AccountApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: zindey-account-api
+      StageName: Dev
+      GatewayResponses:
+        UNAUTHORIZED:
+            ResponseTemplates:
+              "application/json": '{ "message": "Invalid authorization token"}'
+          BAD_REQUEST_BODY:
+            ResponseTemplates:
+              "application/json": '{ "message": "$context.error.validationErrorString"}'
+              
+
+Outputs:
+  WebEndpoint:
+    Description: "API Gateway endpoint URL for Prod stage"
+    Value: !Sub "https://${AccountApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/"
